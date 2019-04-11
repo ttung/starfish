@@ -1,0 +1,54 @@
+primary_image = file_inputs[0]
+dots = file_inputs[1]
+nuclei = file_inputs[2]
+codebook = file_inputs[3]
+
+max_proj = compute(
+    "filter", "MaxProj",
+    primary_image,
+    dims=['c', 'z'])
+
+transformation_list = compute(
+    "learn_transform", "Translation",
+    max_proj,
+    reference_stack=dots, upsampling=1000, axes=Axes.ROUND)
+
+transformed = compute(
+    "apply_transform", "Warp",
+    primary_image,
+    transformation_list)
+
+filtered_primary = compute(
+    "filter", "WhiteTophat",
+    transformed,
+    masking_radius=15)
+
+filtered_nuclei = compute(
+    "filter", "WhiteTophat",
+    nuclei,
+    masking_radius=15)
+
+filtered_dots = compute(
+    "filter", "WhiteTophat",
+    dots,
+    masking_radius=15)
+
+spots = compute(
+    "detect_spots", "BlobDetector",
+    filtered_primary, filtered_dots, {Axes.ROUND, Axes.CH},
+    min_sigma=4, max_sigma=6, num_sigma=20, threshold=0.01)
+
+segmentation = compute(
+    "segment", "Watershed",
+    filtered_primary, filtered_nuclei,
+    nuclei_threshold=.16, input_threshold=.22, min_distance=57)
+
+target_assignment = compute(
+    "target_assignment", "Label",
+    segmentation, spots)
+
+decoded = compute(
+    "decode", "PerRoundMaxChannelDecoder",
+    target_assignment, codebook)
+
+file_outputs[0] = decoded
