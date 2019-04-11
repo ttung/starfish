@@ -7,7 +7,7 @@ from starfish.intensity_table.intensity_table import IntensityTable
 from starfish.types import LOG
 from starfish.types._constants import STARFISH_EXTRAS_KEY
 from starfish.util.logging import LogEncoder
-from .pipelinecomponent import PipelineComponent
+from . import pipelinecomponent
 
 
 class AlgorithmBaseType(ABCMeta):
@@ -108,7 +108,7 @@ class AlgorithmBase(metaclass=AlgorithmBaseType):
 
     @classmethod
     @abstractmethod
-    def get_pipeline_component_class(cls) -> Type[PipelineComponent]:
+    def get_pipeline_component_class(cls) -> Type[pipelinecomponent.PipelineComponent]:
         """
         Returns the class of PipelineComponent this algorithm implements.
         """

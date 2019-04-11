@@ -95,7 +95,7 @@ def install_strict_dependencies():
 # Pipelines
 starfish.add_command(LearnTransform._cli)  # type: ignore
 starfish.add_command(ApplyTransform._cli)  # type: ignore
-starfish.add_command(Filter._cli)  # type: ignore
+starfish.add_command(Filter._base.Filter._cli)  # type: ignore
 starfish.add_command(PixelSpotDecoder._cli)
 starfish.add_command(SpotFinder._cli)  # type: ignore
 starfish.add_command(Segmentation._cli)  # type: ignore

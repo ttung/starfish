@@ -1,7 +1,11 @@
 import importlib
+import os
+import warnings
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
-from typing import Mapping, MutableMapping, Optional, Set, Type
+from typing import Any, Dict, Iterable, Mapping, MutableMapping, Optional, Set, Tuple, Type
+
+from . import algorithmbase
 
 
 class PipelineComponentType(ABCMeta):
@@ -103,3 +107,63 @@ def import_all_submodules(path_str: str, package: str, excluded: Optional[Set[st
             continue
 
         importlib.import_module(f".{entry.stem}", package)
+
+
+class MissingSubmoduleError(RuntimeError):
+    pass
+
+
+class MissingSubmoduleWarning(RuntimeWarning):
+    pass
+
+
+def verify_all_submodules_imported(
+        path_str: str,
+        package: str,
+        namespace: Dict[str, Any],
+        excluded: Optional[Set[str]] = None
+) -> Iterable[Tuple[str, Any]]:
+    """
+    Given a path of a __init__.py file, find all the .py files in that directory and import them.
+    Then ensure that any modules that contain concrete AlgorithmBase subclasses are added to the
+    namespace.
+
+    Parameters
+    ----------
+    path_str : str
+        The path of a __init__.py file.
+    package : str
+        The package name that the modules should be imported relative to.
+    namespace : Dict[str, Any]
+        If any modules that contain concrete AlgorithmBase subclasses are not added to this
+        namespace, add them manually.  If the environment variable STARFISH_SUBMODULE_MISSING_FATAL
+        is set, then raise :py:class:`MissingSubmoduleError` if a submodule is not added.
+    excluded : Optional[Set[str]]
+        A set of files not to include.  If this is not provided, it defaults to set("__init__.py").
+    """
+    if excluded is None:
+        excluded = {"__init__.py"}
+
+    fatal = 'STARFISH_SUBMODULE_MISSING_FATAL' in os.environ
+
+    path: Path = Path(path_str).parent
+    for entry in path.iterdir():
+        if not entry.suffix.lower().endswith(".py"):
+            continue
+        if entry.name.lower() in excluded:
+            continue
+
+        module = importlib.import_module(f".{entry.stem}", package)
+
+        for name in dir(module):
+            obj = getattr(module, name)
+            if isinstance(obj, type(algorithmbase.AlgorithmBase)):
+                if namespace.get(obj.__name__, None) != obj:
+                    if fatal:
+                        raise MissingSubmoduleError(
+                            f"{obj.__name__} from module {module} not imported")
+                    else:
+                        warnings.warn(
+                            f"{obj.__name__} from module {module} not imported, automagically "
+                            f"importing", category=MissingSubmoduleWarning)
+                        namespace[obj.__name__] = obj
